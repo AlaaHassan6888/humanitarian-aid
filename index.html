@@ -1,12 +1,819 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Humanitarian Aid System</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>نظام المساعدات الإنسانية</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script>
+tailwind.config = { theme: { extend: { colors: { primary: '#059669', secondary: '#0d9488' } } } }
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+* { font-family: 'Cairo', sans-serif; }
+body { background: #f0f4f8; }
+.card { background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.btn-primary { background: #059669; color: white; padding: 8px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; }
+.btn-primary:hover { background: #047857; }
+.btn-danger { background: #ef4444; color: white; padding: 6px 14px; border-radius: 8px; border: none; cursor: pointer; }
+.btn-secondary { background: #e5e7eb; color: #374151; padding: 6px 14px; border-radius: 8px; border: none; cursor: pointer; }
+input, select, textarea { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 14px; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: #059669; }
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+.modal.active { display: flex; }
+.modal-content { background: white; border-radius: 16px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; padding: 24px; }
+.table-row:hover { background: #f9fafb; }
+.status-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+.status-active { background: #d1fae5; color: #065f46; }
+.status-inactive { background: #f3f4f6; color: #4b5563; }
+.status-suspended { background: #fee2e2; color: #991b1b; }
+.sidebar-link { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-radius: 10px; color: #6b7280; text-decoration: none; transition: all 0.2s; }
+.sidebar-link:hover, .sidebar-link.active { background: #ecfdf5; color: #059669; }
+#loginScreen { position: fixed; inset: 0; background: linear-gradient(135deg, #059669 0%, #0d9488 100%); z-index: 2000; display: flex; align-items: center; justify-content: center; }
+.login-box { background: white; padding: 40px; border-radius: 20px; width: 90%; max-width: 400px; text-align: center; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Login Screen -->
+<div id="loginScreen">
+  <div class="login-box">
+    <i class="fas fa-hand-holding-heart text-6xl text-primary mb-4"></i>
+    <h1 class="text-2xl font-bold mb-2">نظام المساعدات الإنسانية</h1>
+    <p class="text-gray-500 mb-6">أدخل كلمة المرور للدخول</p>
+    <input type="password" id="loginPassword" placeholder="كلمة المرور" class="mb-4" onkeypress="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()" class="btn-primary w-full py-3">دخول</button>
+    <p id="loginError" class="text-red-500 mt-3 hidden">كلمة المرور غير صحيحة</p>
+    <p class="text-gray-400 text-sm mt-4">افتراضي: 1234</p>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app" class="hidden">
+  <!-- Mobile Header -->
+  <header class="lg:hidden bg-white p-4 flex items-center justify-between shadow-sm">
+    <div class="flex items-center gap-2">
+      <i class="fas fa-hand-holding-heart text-primary text-2xl"></i>
+      <span class="font-bold text-lg">مساعدات</span>
+    </div>
+    <button onclick="toggleSidebar()" class="p-2"><i class="fas fa-bars text-xl"></i></button>
+  </header>
+
+  <div class="flex">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="fixed lg:static inset-0 lg:inset-auto bg-white lg:bg-transparent z-50 lg:z-auto w-64 lg:w-72 h-screen lg:h-auto hidden lg:flex flex-col border-l border-gray-200 lg:border-l-0 lg:border-r">
+      <div class="p-6 bg-white lg:min-h-screen">
+        <div class="flex items-center justify-between lg:justify-start gap-3 mb-8">
+          <i class="fas fa-hand-holding-heart text-primary text-3xl"></i>
+          <div>
+            <h2 class="font-bold text-xl">مساعدات</h2>
+            <p class="text-xs text-gray-500">الإنسانية</p>
+          </div>
+          <button onclick="toggleSidebar()" class="lg:hidden"><i class="fas fa-times text-xl"></i></button>
+        </div>
+
+        <nav class="space-y-2">
+          <a href="#" onclick="showPage('dashboard')" id="nav-dashboard" class="sidebar-link active">
+            <i class="fas fa-chart-line w-5"></i> الرئيسية
+          </a>
+          <a href="#" onclick="showPage('beneficiaries')" id="nav-beneficiaries" class="sidebar-link">
+            <i class="fas fa-users w-5"></i> المستفيدين
+          </a>
+          <a href="#" onclick="showPage('donors')" id="nav-donors" class="sidebar-link">
+            <i class="fas fa-hand-holding-usd w-5"></i> المتبرعين
+          </a>
+          <a href="#" onclick="showPage('transactions')" id="nav-transactions" class="sidebar-link">
+            <i class="fas fa-exchange-alt w-5"></i> المعاملات
+          </a>
+          <a href="#" onclick="showPage('backup')" id="nav-backup" class="sidebar-link">
+            <i class="fas fa-database w-5"></i> نسخة احتياطية
+          </a>
+        </nav>
+
+        <div class="mt-8 pt-6 border-t">
+          <p class="text-xs text-gray-500 mb-2">الصلاحية: <span class="text-primary font-bold">مدير</span></p>
+          <button onclick="doLogout()" class="text-red-500 text-sm hover:underline"><i class="fas fa-sign-out-alt ml-1"></i>خروج</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Overlay for mobile sidebar -->
+    <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-black/50 z-40 hidden lg:hidden"></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-4 lg:p-8">
+      <!-- Dashboard Page -->
+      <div id="page-dashboard" class="page">
+        <h1 class="text-2xl font-bold mb-1">مرحباً!</h1>
+        <p class="text-gray-500 mb-6">نظرة عامة على النظام</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div class="card p-5 flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm">إجمالي المستفيدين</p>
+              <p class="text-3xl font-bold" id="statTotalBeneficiaries">0</p>
+              <p class="text-xs text-primary" id="statActiveBeneficiaries">0 نشط</p>
+            </div>
+            <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"><i class="fas fa-users text-blue-600 text-xl"></i></div>
+          </div>
+          <div class="card p-5 flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm">المستفيدين النشطين</p>
+              <p class="text-3xl font-bold" id="statActiveOnly">0</p>
+            </div>
+            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center"><i class="fas fa-user-check text-green-600 text-xl"></i></div>
+          </div>
+          <div class="card p-5 flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm">إجمالي المتبرعين</p>
+              <p class="text-3xl font-bold" id="statTotalDonors">0</p>
+            </div>
+            <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center"><i class="fas fa-hand-holding-usd text-purple-600 text-xl"></i></div>
+          </div>
+          <div class="card p-5 flex items-center justify-between">
+            <div>
+              <p class="text-gray-500 text-sm">إجمالي المبالغ</p>
+              <p class="text-3xl font-bold" id="statTotalAmount">0 ج</p>
+            </div>
+            <div class="w-12 h-12 bg-amber-100 rounded-xl flex items-center justify-center"><i class="fas fa-coins text-amber-600 text-xl"></i></div>
+          </div>
+        </div>
+
+        <div class="card p-6 mb-6">
+          <h3 class="font-bold text-lg mb-4"><i class="fas fa-chart-bar text-primary ml-2"></i>أحدث المعاملات</h3>
+          <div id="recentTransactions" class="divide-y"></div>
+        </div>
+      </div>
+
+      <!-- Beneficiaries Page -->
+      <div id="page-beneficiaries" class="page hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 class="text-2xl font-bold">المستفيدين</h1>
+            <p class="text-gray-500">إدارة بيانات المستفيدين</p>
+          </div>
+          <button onclick="openBeneficiaryModal()" class="btn-primary"><i class="fas fa-plus ml-2"></i>إضافة مستفيد</button>
+        </div>
+
+        <div class="card p-4 mb-4">
+          <div class="flex flex-col sm:flex-row gap-3">
+            <div class="relative flex-1">
+              <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+              <input type="text" id="beneficiarySearch" placeholder="بحث بالاسم أو الرقم..." oninput="renderBeneficiaries()">
+            </div>
+            <select id="beneficiaryStatusFilter" onchange="renderBeneficiaries()" class="w-full sm:w-40">
+              <option value="">جميع الحالات</option>
+              <option value="active">نشط</option>
+              <option value="inactive">غير نشط</option>
+              <option value="suspended">موقوف</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50"><tr class="text-right text-sm text-gray-600">
+                <th class="p-4">الاسم</th><th class="p-4">السن</th><th class="p-4">الحالة</th>
+                <th class="p-4">طريقة الدفع</th><th class="p-4">الإجراءات</th>
+              </tr></thead>
+              <tbody id="beneficiariesTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Donors Page -->
+      <div id="page-donors" class="page hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 class="text-2xl font-bold">المتبرعين</h1>
+            <p class="text-gray-500">إدارة بيانات المتبرعين</p>
+          </div>
+          <button onclick="openDonorModal()" class="btn-primary"><i class="fas fa-plus ml-2"></i>إضافة متبرع</button>
+        </div>
+
+        <div class="card p-4 mb-4">
+          <div class="relative">
+            <i class="fas fa-search absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="text" id="donorSearch" placeholder="بحث بالاسم أو الرقم..." oninput="renderDonors()">
+          </div>
+        </div>
+
+        <div class="card overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50"><tr class="text-right text-sm text-gray-600">
+                <th class="p-4">الاسم</th><th class="p-4">التليفون</th><th class="p-4">الإيميل</th><th class="p-4">الإجراءات</th>
+              </tr></thead>
+              <tbody id="donorsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Transactions Page -->
+      <div id="page-transactions" class="page hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 class="text-2xl font-bold">المعاملات المالية</h1>
+            <p class="text-gray-500">إدارة عمليات التبرع والصرف</p>
+          </div>
+          <button onclick="openTransactionModal()" class="btn-primary"><i class="fas fa-plus ml-2"></i>تسجيل معاملة</button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+          <div class="card p-4 flex items-center justify-between">
+            <div><p class="text-gray-500 text-sm">إجمالي المعاملات</p><p class="text-2xl font-bold" id="transCount">0</p></div>
+            <i class="fas fa-exchange-alt text-primary text-2xl"></i>
+          </div>
+          <div class="card p-4 flex items-center justify-between">
+            <div><p class="text-gray-500 text-sm">إجمالي المبالغ</p><p class="text-2xl font-bold" id="transTotal">0 ج</p></div>
+            <i class="fas fa-coins text-green-600 text-2xl"></i>
+          </div>
+          <div class="card p-4 flex items-center gap-3">
+            <select id="transMonth" onchange="renderTransactions()" class="flex-1"><option value="">كل الشهور</option></select>
+            <input type="number" id="transYear" placeholder="السنة" class="w-24" onchange="renderTransactions()">
+          </div>
+        </div>
+
+        <div class="card overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full">
+              <thead class="bg-gray-50"><tr class="text-right text-sm text-gray-600">
+                <th class="p-4">المستفيد</th><th class="p-4">المتبرع</th><th class="p-4">المبلغ</th>
+                <th class="p-4">الشهر/السنة</th><th class="p-4">طريقة الدفع</th><th class="p-4">الإجراءات</th>
+              </tr></thead>
+              <tbody id="transactionsTable"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Backup Page -->
+      <div id="page-backup" class="page hidden">
+        <h1 class="text-2xl font-bold mb-1">نسخة احتياطية</h1>
+        <p class="text-gray-500 mb-6">حفظ واستعادة البيانات</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="card p-6">
+            <i class="fas fa-download text-4xl text-primary mb-4"></i>
+            <h3 class="font-bold text-lg mb-2">تصدير البيانات</h3>
+            <p class="text-gray-500 text-sm mb-4">احفظ كل البيانات في ملف JSON على جهازك</p>
+            <button onclick="exportData()" class="btn-primary w-full"><i class="fas fa-download ml-2"></i>تصدير</button>
+          </div>
+
+          <div class="card p-6">
+            <i class="fas fa-upload text-4xl text-secondary mb-4"></i>
+            <h3 class="font-bold text-lg mb-2">استيراد البيانات</h3>
+            <p class="text-gray-500 text-sm mb-4">استعادة البيانات من ملف JSON سابق</p>
+            <input type="file" id="importFile" accept=".json" onchange="importData(this)" class="mb-3">
+            <button onclick="document.getElementById('importFile').click()" class="btn-primary w-full"><i class="fas fa-upload ml-2"></i>اختر ملف</button>
+          </div>
+        </div>
+
+        <div class="card p-6 mt-6 bg-yellow-50 border border-yellow-200">
+          <i class="fas fa-exclamation-triangle text-yellow-600 text-2xl mb-3"></i>
+          <h3 class="font-bold mb-2">تنبيه مهم</h3>
+          <p class="text-gray-600 text-sm">البيانات محفوظة في متصفحك فقط (localStorage). لو عملت clear cache أو غيرت المتصفح - البيانات هتروح. اعمل export بانتظام!</p>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Beneficiary Modal -->
+<div id="beneficiaryModal" class="modal">
+  <div class="modal-content">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold" id="beneficiaryModalTitle">إضافة مستفيد</h2>
+      <button onclick="closeModal('beneficiaryModal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+    </div>
+    <form id="beneficiaryForm" onsubmit="saveBeneficiary(event)">
+      <input type="hidden" id="beneficiaryId">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div class="sm:col-span-2"><label class="block text-sm text-gray-600 mb-1">الاسم *</label><input type="text" id="bName" required></div>
+        <div><label class="block text-sm text-gray-600 mb-1">السن</label><input type="number" id="bAge"></div>
+        <div><label class="block text-sm text-gray-600 mb-1">الحالة الاجتماعية</label><input type="text" id="bSocial" placeholder="متزوج/أعزب/أرمل"></div>
+        <div><label class="block text-sm text-gray-600 mb-1">التليفون</label><input type="text" id="bPhone"></div>
+        <div><label class="block text-sm text-gray-600 mb-1">الحالة</label>
+          <select id="bStatus"><option value="active">نشط</option><option value="inactive">غير نشط</option><option value="suspended">موقوف</option></select>
+        </div>
+      </div>
+      <div class="mb-4"><label class="block text-sm text-gray-600 mb-1">العنوان</label><textarea id="bAddress" rows="2"></textarea></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div><label class="block text-sm text-gray-600 mb-1">طريقة الدفع</label>
+          <select id="bPayment"><option value="cash">نقدي</option><option value="wallet">محفظة إلكترونية</option><option value="bank_transfer">تحويل بنكي</option><option value="visa">فيزا</option></select>
+        </div>
+        <div><label class="block text-sm text-gray-600 mb-1">تفاصيل الدفع</label><input type="text" id="bPaymentDetails" placeholder="رقم المحفظة/الحساب"></div>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm text-gray-600 mb-1">صورة البطاقة</label>
+        <input type="file" id="bIdCard" accept="image/*" class="mb-2" onchange="previewIdCard(this)">
+        <img id="bIdCardPreview" class="max-h-48 rounded-lg border hidden">
+      </div>
+      <div class="mb-4"><label class="block text-sm text-gray-600 mb-1">ملاحظات</label><textarea id="bNotes" rows="2"></textarea></div>
+      <div class="flex gap-2">
+        <button type="submit" class="btn-primary flex-1 py-3">حفظ</button>
+        <button type="button" onclick="closeModal('beneficiaryModal')" class="btn-secondary flex-1 py-3">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Donor Modal -->
+<div id="donorModal" class="modal">
+  <div class="modal-content">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold" id="donorModalTitle">إضافة متبرع</h2>
+      <button onclick="closeModal('donorModal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+    </div>
+    <form id="donorForm" onsubmit="saveDonor(event)">
+      <input type="hidden" id="donorId">
+      <div class="mb-4"><label class="block text-sm text-gray-600 mb-1">الاسم *</label><input type="text" id="dName" required></div>
+      <div class="mb-4"><label class="block text-sm text-gray-600 mb-1">التليفون</label><input type="text" id="dPhone"></div>
+      <div class="mb-4"><label class="block text-sm text-gray-600 mb-1">الإيميل</label><input type="email" id="dEmail"></div>
+      <div class="mb-4"><label class="block text-sm text-gray-600 mb-1">ملاحظات</label><textarea id="dNotes" rows="3"></textarea></div>
+      <div class="flex gap-2">
+        <button type="submit" class="btn-primary flex-1 py-3">حفظ</button>
+        <button type="button" onclick="closeModal('donorModal')" class="btn-secondary flex-1 py-3">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Transaction Modal -->
+<div id="transactionModal" class="modal">
+  <div class="modal-content">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold" id="transactionModalTitle">تسجيل معاملة</h2>
+      <button onclick="closeModal('transactionModal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+    </div>
+    <form id="transactionForm" onsubmit="saveTransaction(event)">
+      <input type="hidden" id="transactionId">
+      <div class="mb-4"><label class="block text-sm text-gray-600 mb-1">المستفيد *</label><select id="tBeneficiary" required></select></div>
+      <div class="mb-4"><label class="block text-sm text-gray-600 mb-1">المتبرع</label><select id="tDonor"><option value="">-- بدون --</option></select></div>
+      <div class="mb-4"><label class="block text-sm text-gray-600 mb-1">المبلغ *</label><input type="number" id="tAmount" step="0.01" required></div>
+      <div class="mb-4"><label class="block text-sm text-gray-600 mb-1">طريقة الدفع</label>
+        <select id="tPayment"><option value="cash">نقدي</option><option value="wallet">محفظة إلكترونية</option><option value="bank_transfer">تحويل بنكي</option><option value="visa">فيزا</option></select>
+      </div>
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div><label class="block text-sm text-gray-600 mb-1">الشهر *</label><select id="tMonth" required></select></div>
+        <div><label class="block text-sm text-gray-600 mb-1">السنة *</label><input type="number" id="tYear" required></div>
+      </div>
+      <div class="mb-4"><label class="block text-sm text-gray-600 mb-1">ملاحظات</label><textarea id="tNotes" rows="2"></textarea></div>
+      <div class="flex gap-2">
+        <button type="submit" class="btn-primary flex-1 py-3">تسجيل</button>
+        <button type="button" onclick="closeModal('transactionModal')" class="btn-secondary flex-1 py-3">إلغاء</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- View Modal -->
+<div id="viewModal" class="modal">
+  <div class="modal-content">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-xl font-bold">التفاصيل</h2>
+      <button onclick="closeModal('viewModal')" class="text-gray-400 hover:text-gray-600"><i class="fas fa-times text-xl"></i></button>
+    </div>
+    <div id="viewContent"></div>
+  </div>
+</div>
+
+<script>
+// ===================== DATA STORE =====================
+const DB = {
+  get(key) { return JSON.parse(localStorage.getItem('ha_' + key) || '[]'); },
+  set(key, val) { localStorage.setItem('ha_' + key, JSON.stringify(val)); },
+};
+
+// Demo data
+function initDemoData() {
+  if (DB.get('beneficiaries').length === 0) {
+    DB.set('beneficiaries', [
+      {id: 1, name: 'أحمد محمد علي', age: 45, phone: '01012345678', address: 'القاهرة - مدينة نصر', status: 'active', socialStatus: 'متزوج', paymentMethod: 'cash', paymentDetails: 'استلام من المكتب', notes: 'يعول 3 أطفال', idCard: null, createdAt: '2025-01-01'},
+      {id: 2, name: 'فاطمة عبدالله', age: 62, phone: '01198765432', address: 'الجيزة - الدقي', status: 'active', socialStatus: 'أرملة', paymentMethod: 'wallet', paymentDetails: 'فودافون كاش: 01001234567', notes: 'مسنة تعيش بمفردها', idCard: null, createdAt: '2025-01-05'},
+      {id: 3, name: 'محمود إبراهيم', age: 30, phone: '01555444333', address: 'الإسكندرية', status: 'active', socialStatus: 'أعزب', paymentMethod: 'bank_transfer', paymentDetails: 'البنك الأهلي', notes: 'إعاقة حركية', idCard: null, createdAt: '2025-01-10'},
+      {id: 4, name: 'نادية حسن', age: 55, phone: '01222333444', address: 'شبرا الخيمة', status: 'active', socialStatus: 'مطلقة', paymentMethod: 'visa', paymentDetails: 'بطاقة بنك مصر', notes: 'تعول طفلين', idCard: null, createdAt: '2025-01-15'},
+      {id: 5, name: 'سيد عمر', age: 38, phone: '01099887766', address: 'المنصورة', status: 'inactive', socialStatus: 'متزوج', paymentMethod: 'cash', paymentDetails: '', notes: 'متوقف مؤقتاً', idCard: null, createdAt: '2025-02-01'},
+    ]);
+  }
+  if (DB.get('donors').length === 0) {
+    DB.set('donors', [
+      {id: 1, name: 'خالد محمود', phone: '01011112222', email: 'khaled@test.com', notes: 'متبرع منتظم', createdAt: '2025-01-01'},
+      {id: 2, name: 'شركة النور', phone: '0233334444', email: 'info@alnoor.org', notes: 'جهة خيرية', createdAt: '2025-01-01'},
+      {id: 3, name: 'د. سارة أحمد', phone: '01055556666', email: 'sara@test.com', notes: 'تبرع 5000 شهرياً', createdAt: '2025-01-01'},
+    ]);
+  }
+  if (DB.get('transactions').length === 0) {
+    DB.set('transactions', [
+      {id: 1, beneficiaryId: 1, donorId: 1, amount: 1500, month: 1, year: 2025, paymentMethod: 'cash', notes: '', createdAt: '2025-01-15'},
+      {id: 2, beneficiaryId: 2, donorId: 2, amount: 2000, month: 1, year: 2025, paymentMethod: 'wallet', notes: '', createdAt: '2025-01-16'},
+      {id: 3, beneficiaryId: 3, donorId: 3, amount: 1800, month: 1, year: 2025, paymentMethod: 'bank_transfer', notes: '', createdAt: '2025-01-17'},
+      {id: 4, beneficiaryId: 1, donorId: 1, amount: 1500, month: 2, year: 2025, paymentMethod: 'cash', notes: '', createdAt: '2025-02-10'},
+      {id: 5, beneficiaryId: 4, donorId: 2, amount: 2500, month: 2, year: 2025, paymentMethod: 'visa', notes: '', createdAt: '2025-02-15'},
+      {id: 6, beneficiaryId: 2, donorId: 3, amount: 2000, month: 3, year: 2025, paymentMethod: 'wallet', notes: '', createdAt: '2025-03-10'},
+      {id: 7, beneficiaryId: 1, donorId: 1, amount: 1500, month: 4, year: 2025, paymentMethod: 'cash', notes: '', createdAt: '2025-04-10'},
+      {id: 8, beneficiaryId: 4, donorId: 1, amount: 2500, month: 4, year: 2025, paymentMethod: 'visa', notes: '', createdAt: '2025-04-15'},
+      {id: 9, beneficiaryId: 3, donorId: 3, amount: 1800, month: 5, year: 2025, paymentMethod: 'bank_transfer', notes: '', createdAt: '2025-05-10'},
+      {id: 10, beneficiaryId: 1, donorId: 2, amount: 1500, month: 5, year: 2025, paymentMethod: 'cash', notes: '', createdAt: '2025-05-15'},
+    ]);
+  }
+}
+
+// ===================== AUTH =====================
+function doLogin() {
+  const pw = document.getElementById('loginPassword').value;
+  if (pw === '1234') {
+    localStorage.setItem('ha_loggedIn', 'true');
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    initApp();
+  } else {
+    document.getElementById('loginError').classList.remove('hidden');
+  }
+}
+function doLogout() {
+  localStorage.removeItem('ha_loggedIn');
+  location.reload();
+}
+function checkLogin() {
+  if (localStorage.getItem('ha_loggedIn') === 'true') {
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    initApp();
+  }
+}
+
+// ===================== NAVIGATION =====================
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.add('hidden'));
+  document.getElementById('page-' + page).classList.remove('hidden');
+  document.querySelectorAll('.sidebar-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('nav-' + page).classList.add('active');
+  if (page === 'dashboard') updateDashboard();
+  if (page === 'beneficiaries') renderBeneficiaries();
+  if (page === 'donors') renderDonors();
+  if (page === 'transactions') renderTransactions();
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('hidden');
+  document.getElementById('sidebarOverlay').classList.toggle('hidden');
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+
+// ===================== HELPERS =====================
+const statusLabels = {active: 'نشط', inactive: 'غير نشط', suspended: 'موقوف'};
+const payLabels = {cash: 'نقدي', wallet: 'محفظة إلكترونية', bank_transfer: 'تحويل بنكي', visa: 'فيزا'};
+const months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+let nextId = (key) => { const items = DB.get(key); return items.length ? Math.max(...items.map(i => i.id)) + 1 : 1; };
+
+// ===================== DASHBOARD =====================
+function updateDashboard() {
+  const beneficiaries = DB.get('beneficiaries');
+  const donors = DB.get('donors');
+  const transactions = DB.get('transactions');
+  const activeCount = beneficiaries.filter(b => b.status === 'active').length;
+  const totalAmount = transactions.reduce((s, t) => s + Number(t.amount), 0);
+
+  document.getElementById('statTotalBeneficiaries').textContent = beneficiaries.length;
+  document.getElementById('statActiveBeneficiaries').textContent = activeCount + ' نشط';
+  document.getElementById('statActiveOnly').textContent = activeCount;
+  document.getElementById('statTotalDonors').textContent = donors.length;
+  document.getElementById('statTotalAmount').textContent = totalAmount.toLocaleString('ar-EG') + ' ج';
+
+  // Recent transactions
+  const recent = [...transactions].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+  const html = recent.length ? recent.map(t => {
+    const ben = beneficiaries.find(b => b.id === t.beneficiaryId);
+    const don = donors.find(d => d.id === t.donorId);
+    return `<div class="flex items-center justify-between py-3">
+      <div><p class="font-medium">${ben ? ben.name : '--'}</p><p class="text-sm text-gray-500">${don ? 'من ' + don.name : ''} - ${months[t.month-1]} ${t.year}</p></div>
+      <div class="text-left"><p class="font-bold text-primary">${Number(t.amount).toLocaleString('ar-EG')} ج</p><p class="text-xs text-gray-400">${payLabels[t.paymentMethod]}</p></div>
+    </div>`;
+  }).join('') : '<p class="text-gray-500 text-center py-8">لا توجد معاملات</p>';
+  document.getElementById('recentTransactions').innerHTML = html;
+}
+
+// ===================== BENEFICIARIES =====================
+function renderBeneficiaries() {
+  const search = document.getElementById('beneficiarySearch').value.toLowerCase();
+  const statusF = document.getElementById('beneficiaryStatusFilter').value;
+  let items = DB.get('beneficiaries');
+  if (search) items = items.filter(i => i.name.includes(search) || (i.phone && i.phone.includes(search)));
+  if (statusF) items = items.filter(i => i.status === statusF);
+
+  const html = items.map(b => `<tr class="table-row border-b">
+    <td class="p-4 font-medium">${b.name}</td>
+    <td class="p-4">${b.age || '--'}</td>
+    <td class="p-4"><span class="status-badge status-${b.status}">${statusLabels[b.status]}</span></td>
+    <td class="p-4">${payLabels[b.paymentMethod]}</td>
+    <td class="p-4">
+      <button onclick="viewBeneficiary(${b.id})" class="btn-secondary" title="عرض"><i class="fas fa-eye"></i></button>
+      <button onclick="editBeneficiary(${b.id})" class="btn-secondary" title="تعديل"><i class="fas fa-edit"></i></button>
+      <button onclick="deleteBeneficiary(${b.id})" class="btn-danger" title="حذف"><i class="fas fa-trash"></i></button>
+    </td>
+  </tr>`).join('') || '<tr><td colspan="5" class="p-8 text-center text-gray-500">لا يوجد مستفيدين</td></tr>';
+  document.getElementById('beneficiariesTable').innerHTML = html;
+}
+
+function openBeneficiaryModal() {
+  document.getElementById('beneficiaryForm').reset();
+  document.getElementById('beneficiaryId').value = '';
+  document.getElementById('bIdCardPreview').classList.add('hidden');
+  document.getElementById('beneficiaryModalTitle').textContent = 'إضافة مستفيد';
+  openModal('beneficiaryModal');
+}
+
+function editBeneficiary(id) {
+  const b = DB.get('beneficiaries').find(x => x.id === id);
+  if (!b) return;
+  document.getElementById('beneficiaryId').value = b.id;
+  document.getElementById('bName').value = b.name;
+  document.getElementById('bAge').value = b.age || '';
+  document.getElementById('bSocial').value = b.socialStatus || '';
+  document.getElementById('bPhone').value = b.phone || '';
+  document.getElementById('bAddress').value = b.address || '';
+  document.getElementById('bStatus').value = b.status;
+  document.getElementById('bPayment').value = b.paymentMethod;
+  document.getElementById('bPaymentDetails').value = b.paymentDetails || '';
+  document.getElementById('bNotes').value = b.notes || '';
+  if (b.idCard) { document.getElementById('bIdCardPreview').src = b.idCard; document.getElementById('bIdCardPreview').classList.remove('hidden'); }
+  else document.getElementById('bIdCardPreview').classList.add('hidden');
+  document.getElementById('beneficiaryModalTitle').textContent = 'تعديل مستفيد';
+  openModal('beneficiaryModal');
+}
+
+function previewIdCard(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => { document.getElementById('bIdCardPreview').src = e.target.result; document.getElementById('bIdCardPreview').classList.remove('hidden'); };
+  reader.readAsDataURL(file);
+}
+
+function saveBeneficiary(e) {
+  e.preventDefault();
+  const id = document.getElementById('beneficiaryId').value;
+  let b = {
+    id: id ? Number(id) : nextId('beneficiaries'),
+    name: document.getElementById('bName').value,
+    age: Number(document.getElementById('bAge').value) || null,
+    socialStatus: document.getElementById('bSocial').value || null,
+    phone: document.getElementById('bPhone').value || null,
+    address: document.getElementById('bAddress').value || null,
+    status: document.getElementById('bStatus').value,
+    paymentMethod: document.getElementById('bPayment').value,
+    paymentDetails: document.getElementById('bPaymentDetails').value || null,
+    notes: document.getElementById('bNotes').value || null,
+    createdAt: new Date().toISOString().split('T')[0],
+  };
+  const preview = document.getElementById('bIdCardPreview');
+  if (!preview.classList.contains('hidden')) b.idCard = preview.src;
+
+  let items = DB.get('beneficiaries');
+  if (id) items = items.map(x => x.id === Number(id) ? {...x, ...b, id: x.id, createdAt: x.createdAt} : x);
+  else items.push(b);
+  DB.set('beneficiaries', items);
+  closeModal('beneficiaryModal');
+  renderBeneficiaries();
+}
+
+function deleteBeneficiary(id) {
+  if (!confirm('هل أنت متأكد من الحذف؟')) return;
+  DB.set('beneficiaries', DB.get('beneficiaries').filter(x => x.id !== id));
+  renderBeneficiaries();
+}
+
+function viewBeneficiary(id) {
+  const b = DB.get('beneficiaries').find(x => x.id === id);
+  if (!b) return;
+  let html = `<div class="flex items-center gap-4 mb-6 pb-4 border-b">
+    <div class="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center"><i class="fas fa-user text-primary text-2xl"></i></div>
+    <div><h3 class="font-bold text-lg">${b.name}</h3><span class="status-badge status-${b.status}">${statusLabels[b.status]}</span></div>
+  </div>`;
+  if (b.idCard) html += `<div class="mb-4"><label class="text-sm text-gray-500">صورة البطاقة</label><img src="${b.idCard}" class="mt-2 max-h-64 rounded-lg border"></div>`;
+  html += `<div class="grid grid-cols-2 gap-4 mb-4">`;
+  if (b.age) html += `<div><label class="text-sm text-gray-500">السن</label><p>${b.age} سنة</p></div>`;
+  if (b.socialStatus) html += `<div><label class="text-sm text-gray-500">الحالة الاجتماعية</label><p>${b.socialStatus}</p></div>`;
+  html += `</div>`;
+  if (b.phone) html += `<div class="mb-3"><label class="text-sm text-gray-500">التليفون</label><p>${b.phone}</p></div>`;
+  if (b.address) html += `<div class="mb-3"><label class="text-sm text-gray-500">العنوان</label><p>${b.address}</p></div>`;
+  html += `<div class="mb-3"><label class="text-sm text-gray-500">طريقة الدفع</label><p>${payLabels[b.paymentMethod]}</p>`;
+  if (b.paymentDetails) html += `<p class="text-sm text-gray-400">${b.paymentDetails}</p>`;
+  html += `</div>`;
+  if (b.notes) html += `<div class="pt-4 border-t"><label class="text-sm text-gray-500">ملاحظات</label><p>${b.notes}</p></div>`;
+
+  document.getElementById('viewContent').innerHTML = html;
+  openModal('viewModal');
+}
+
+// ===================== DONORS =====================
+function renderDonors() {
+  const search = document.getElementById('donorSearch').value.toLowerCase();
+  let items = DB.get('donors');
+  if (search) items = items.filter(i => i.name.includes(search) || (i.phone && i.phone.includes(search)));
+
+  const html = items.map(d => `<tr class="table-row border-b">
+    <td class="p-4 font-medium">${d.name}</td>
+    <td class="p-4">${d.phone || '--'}</td>
+    <td class="p-4">${d.email || '--'}</td>
+    <td class="p-4">
+      <button onclick="viewDonor(${d.id})" class="btn-secondary"><i class="fas fa-eye"></i></button>
+      <button onclick="editDonor(${d.id})" class="btn-secondary"><i class="fas fa-edit"></i></button>
+      <button onclick="deleteDonor(${d.id})" class="btn-danger"><i class="fas fa-trash"></i></button>
+    </td>
+  </tr>`).join('') || '<tr><td colspan="4" class="p-8 text-center text-gray-500">لا يوجد متبرعين</td></tr>';
+  document.getElementById('donorsTable').innerHTML = html;
+}
+
+function openDonorModal() {
+  document.getElementById('donorForm').reset();
+  document.getElementById('donorId').value = '';
+  document.getElementById('donorModalTitle').textContent = 'إضافة متبرع';
+  openModal('donorModal');
+}
+
+function editDonor(id) {
+  const d = DB.get('donors').find(x => x.id === id);
+  if (!d) return;
+  document.getElementById('donorId').value = d.id;
+  document.getElementById('dName').value = d.name;
+  document.getElementById('dPhone').value = d.phone || '';
+  document.getElementById('dEmail').value = d.email || '';
+  document.getElementById('dNotes').value = d.notes || '';
+  document.getElementById('donorModalTitle').textContent = 'تعديل متبرع';
+  openModal('donorModal');
+}
+
+function saveDonor(e) {
+  e.preventDefault();
+  const id = document.getElementById('donorId').value;
+  let d = {
+    id: id ? Number(id) : nextId('donors'),
+    name: document.getElementById('dName').value,
+    phone: document.getElementById('dPhone').value || null,
+    email: document.getElementById('dEmail').value || null,
+    notes: document.getElementById('dNotes').value || null,
+    createdAt: new Date().toISOString().split('T')[0],
+  };
+  let items = DB.get('donors');
+  if (id) items = items.map(x => x.id === Number(id) ? {...x, ...d, id: x.id, createdAt: x.createdAt} : x);
+  else items.push(d);
+  DB.set('donors', items);
+  closeModal('donorModal');
+  renderDonors();
+}
+
+function deleteDonor(id) {
+  if (!confirm('هل أنت متأكد من الحذف؟')) return;
+  DB.set('donors', DB.get('donors').filter(x => x.id !== id));
+  renderDonors();
+}
+
+function viewDonor(id) {
+  const d = DB.get('donors').find(x => x.id === id);
+  if (!d) return;
+  let html = `<div class="flex items-center gap-4 mb-6 pb-4 border-b">
+    <div class="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center"><i class="fas fa-hand-holding-usd text-purple-600 text-2xl"></i></div>
+    <div><h3 class="font-bold text-lg">${d.name}</h3><p class="text-sm text-gray-500">متبرع</p></div>
+  </div>`;
+  if (d.phone) html += `<div class="mb-3"><label class="text-sm text-gray-500">التليفون</label><p>${d.phone}</p></div>`;
+  if (d.email) html += `<div class="mb-3"><label class="text-sm text-gray-500">الإيميل</label><p>${d.email}</p></div>`;
+  if (d.notes) html += `<div class="pt-4 border-t"><label class="text-sm text-gray-500">ملاحظات</label><p>${d.notes}</p></div>`;
+  document.getElementById('viewContent').innerHTML = html;
+  openModal('viewModal');
+}
+
+// ===================== TRANSACTIONS =====================
+function populateTransactionSelects() {
+  const benOpts = DB.get('beneficiaries').filter(b => b.status === 'active').map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+  document.getElementById('tBeneficiary').innerHTML = '<option value="">-- اختر --</option>' + benOpts;
+  const donOpts = DB.get('donors').map(d => `<option value="${d.id}">${d.name}</option>`).join('');
+  document.getElementById('tDonor').innerHTML = '<option value="">-- بدون --</option>' + donOpts;
+
+  const monthOpts = months.map((m, i) => `<option value="${i+1}" ${i+1 === new Date().getMonth()+1 ? 'selected' : ''}>${m}</option>`).join('');
+  document.getElementById('tMonth').innerHTML = monthOpts;
+  document.getElementById('tYear').value = new Date().getFullYear();
+
+  // Filter dropdown
+  const filterOpts = '<option value="">كل الشهور</option>' + months.map((m, i) => `<option value="${i+1}">${m}</option>`).join('');
+  document.getElementById('transMonth').innerHTML = filterOpts;
+}
+
+function renderTransactions() {
+  const monthF = document.getElementById('transMonth').value;
+  const yearF = document.getElementById('transYear').value;
+  let items = DB.get('transactions');
+  if (monthF) items = items.filter(t => t.month === Number(monthF));
+  if (yearF) items = items.filter(t => t.year === Number(yearF));
+
+  const beneficiaries = DB.get('beneficiaries');
+  const donors = DB.get('donors');
+  const total = items.reduce((s, t) => s + Number(t.amount), 0);
+
+  document.getElementById('transCount').textContent = items.length;
+  document.getElementById('transTotal').textContent = total.toLocaleString('ar-EG') + ' ج';
+
+  const html = items.sort((a, b) => b.id - a.id).map(t => {
+    const ben = beneficiaries.find(b => b.id === t.beneficiaryId);
+    const don = donors.find(d => d.id === t.donorId);
+    return `<tr class="table-row border-b">
+      <td class="p-4">${ben ? ben.name : '--'}</td>
+      <td class="p-4">${don ? don.name : '--'}</td>
+      <td class="p-4 font-bold text-primary">${Number(t.amount).toLocaleString('ar-EG')} ج</td>
+      <td class="p-4">${months[t.month-1]} ${t.year}</td>
+      <td class="p-4">${payLabels[t.paymentMethod]}</td>
+      <td class="p-4"><button onclick="deleteTransaction(${t.id})" class="btn-danger"><i class="fas fa-trash"></i></button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" class="p-8 text-center text-gray-500">لا توجد معاملات</td></tr>';
+  document.getElementById('transactionsTable').innerHTML = html;
+}
+
+function openTransactionModal() {
+  populateTransactionSelects();
+  document.getElementById('transactionForm').reset();
+  document.getElementById('transactionId').value = '';
+  document.getElementById('tYear').value = new Date().getFullYear();
+  document.getElementById('tMonth').value = new Date().getMonth() + 1;
+  document.getElementById('transactionModalTitle').textContent = 'تسجيل معاملة';
+  openModal('transactionModal');
+}
+
+function saveTransaction(e) {
+  e.preventDefault();
+  const t = {
+    id: nextId('transactions'),
+    beneficiaryId: Number(document.getElementById('tBeneficiary').value),
+    donorId: Number(document.getElementById('tDonor').value) || null,
+    amount: Number(document.getElementById('tAmount').value),
+    paymentMethod: document.getElementById('tPayment').value,
+    month: Number(document.getElementById('tMonth').value),
+    year: Number(document.getElementById('tYear').value),
+    notes: document.getElementById('tNotes').value || null,
+    createdAt: new Date().toISOString().split('T')[0],
+  };
+  DB.set('transactions', [...DB.get('transactions'), t]);
+  closeModal('transactionModal');
+  renderTransactions();
+}
+
+function deleteTransaction(id) {
+  if (!confirm('هل أنت متأكد من الحذف؟')) return;
+  DB.set('transactions', DB.get('transactions').filter(x => x.id !== id));
+  renderTransactions();
+}
+
+// ===================== BACKUP =====================
+function exportData() {
+  const data = {
+    beneficiaries: DB.get('beneficiaries'),
+    donors: DB.get('donors'),
+    transactions: DB.get('transactions'),
+    exportedAt: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'humanitarian-aid-backup-' + new Date().toISOString().split('T')[0] + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.beneficiaries) DB.set('beneficiaries', data.beneficiaries);
+      if (data.donors) DB.set('donors', data.donors);
+      if (data.transactions) DB.set('transactions', data.transactions);
+      alert('تم استيراد البيانات بنجاح!');
+      location.reload();
+    } catch (err) {
+      alert('ملف غير صالح!');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+// ===================== INIT =====================
+function initApp() {
+  initDemoData();
+  populateTransactionSelects();
+  updateDashboard();
+}
+
+checkLogin();
+</script>
+</body>
 </html>
